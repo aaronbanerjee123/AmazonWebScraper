@@ -1,130 +1,107 @@
 import { PriceHistoryItem, Product } from "@/types";
 import { Notification } from "@/lib/nodemailer";
-import {THRESHOLD_PERCENTAGE} from "@/lib/nodemailer";
-
+import { THRESHOLD_PERCENTAGE } from "@/lib/nodemailer";
 
 export function extractPrice(...elements: any): string {
-    for (const element of elements) {
-        const priceText = element.text().trim();
-        if (priceText) {
-            // Extract the first occurrence of a price-like pattern
-            const match = priceText.match(/\$?(\d+(?:\.\d{2})?)/);
-            if (match) {
-                return match[1];  // Return the captured group (without the $ sign)
-            }
-        }
+  if (!elements || elements.length === 0) return '';
+  for (const element of elements) {
+    if (!element || !element.text) continue;
+    const priceText = element.text().trim();
+    if (priceText) {
+      const match = priceText.match(/\$?(\d+(?:\.\d{2})?)/);
+      if (match) return match[1];
     }
-    return '';
+  }
+  return '';
 }
 
-function convertToNumber(str:string) {
-  return parseInt(str.replace(/,/g, ''), 10);
+function convertToNumber(str: string): number {
+  if (!str) return 0;
+  return parseInt(str.replace(/,/g, ''), 10) || 0;
 }
 
-export function extractReviewsCount(review:string): number {
+export function extractReviewsCount(review: string): number {
+  if (!review) return 0;
   const reviewAmount = review.split(" ");
   return convertToNumber(reviewAmount[0]);
 }
 
-export function extractCurrency(element:any) {
-    const currencyText = element.text().trim().slice(0,1);
-    return currencyText ? currencyText : '';
+export function extractCurrency(element: any): string {
+  if (!element || !element.text) return '';
+  const currencyText = element.text().trim().slice(0, 1);
+  return currencyText || '';
 }
 
+export function extractDescription($: any): string {
+  if (!$) return "";
+  const selectors = [
+    ".a-unordered-list .a-list-item",
+    ".a-expander-content p",
+  ];
 
+  for (const selector of selectors) {
+    const elements = $(selector);
+    if (elements.length > 0) {
+      return elements
+        .map((_: any, element: any) => $(element).text().trim())
+        .get()
+        .join("\n");
+    }
+  }
 
-export function extractDescription($: any) {
-    // these are possible elements holding description of the product
-    const selectors = [
-      ".a-unordered-list .a-list-item",
-      ".a-expander-content p",
-      // Add more selectors here if needed
-    ];
-  
-    for (const selector of selectors) {
-      const elements = $(selector);
-      if (elements.length > 0) {
-        const textContent = elements
-          .map((_: any, element: any) => $(element).text().trim())
-          .get()
-          .join("\n");
-        return textContent;
-      }
-    }
-  
-    // If no matching elements were found, return an empty string
-    return "";
-  }
-  
-  export function getHighestPrice(priceList: PriceHistoryItem[]) {
-    let highestPrice = priceList[0];
-  
-    for (let i = 0; i < priceList.length; i++) {
-      if (priceList[i].price > highestPrice.price) {
-        highestPrice = priceList[i];
-      }
-    }
-  
-    return highestPrice.price;
-  }
-  
-  export function getLowestPrice(priceList: PriceHistoryItem[]) {
-    let lowestPrice = priceList[0];
-  
-    for (let i = 0; i < priceList.length; i++) {
-      if (priceList[i].price < lowestPrice.price) {
-        lowestPrice = priceList[i];
-      }
-    }
-  
-    return lowestPrice.price;
-  }
-  
-  export function getAveragePrice(priceList: PriceHistoryItem[]) {
-    const sumOfPrices = priceList.reduce((acc, curr) => acc + curr.price, 0);
-    const averagePrice = sumOfPrices / priceList.length || 0;
-  
-    return averagePrice;
-  }
-  
-  export const getEmailNotifType = (
-    scrapedProduct: Product,
-    currentProduct: Product
-  ) => {
-    const lowestPrice = getLowestPrice(currentProduct.priceHistory);
-  
+  return "";
+}
 
-    if (scrapedProduct.currentPrice < lowestPrice) {
-      return Notification.LOWEST_PRICE as keyof typeof Notification;
-    }
-    if (!scrapedProduct.isOutOfStock && currentProduct.isOutOfStock) {
-      return Notification.CHANGE_OF_STOCK as keyof typeof Notification;
-    }
-    if (scrapedProduct.discountRate >= THRESHOLD_PERCENTAGE) {
-      return Notification.THRESHOLD_MET as keyof typeof Notification;
-    }
+export function getHighestPrice(priceList: PriceHistoryItem[]): number {
+  if (!priceList || priceList.length === 0) return 0;
+  return Math.max(...priceList.map(item => item.price));
+}
+
+export function getLowestPrice(priceList: PriceHistoryItem[]): number {
+  if (!priceList || priceList.length === 0) return 0;
+  return Math.min(...priceList.map(item => item.price));
+}
+
+export function getAveragePrice(priceList: PriceHistoryItem[]): number {
+  if (!priceList || priceList.length === 0) return 0;
+  const sumOfPrices = priceList.reduce((acc, curr) => acc + curr.price, 0);
+  return sumOfPrices / priceList.length;
+}
+
+export const getEmailNotifType = (
+  scrapedProduct: Product,
+  currentProduct: Product
+): keyof typeof Notification | null => {
+  if (!scrapedProduct || !currentProduct) return null;
   
+  const lowestPrice = getLowestPrice(currentProduct.priceHistory);
+
+  if (scrapedProduct.currentPrice < lowestPrice) {
+    return Notification.LOWEST_PRICE as keyof typeof Notification;
+  }
+  if (!scrapedProduct.isOutOfStock && currentProduct.isOutOfStock) {
+    return Notification.CHANGE_OF_STOCK as keyof typeof Notification;
+  }
+  if (scrapedProduct.discountRate >= THRESHOLD_PERCENTAGE) {
+    return Notification.THRESHOLD_MET as keyof typeof Notification;
+  }
+
+  return null;
+};
+
+export const formatNumber = (num: number = 0): string => {
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+};
+
+export const getLowestPricer = (curProd: Product): PriceHistoryItem | null => {
+  if (!curProd || !curProd.priceHistory || curProd.priceHistory.length === 0) {
     return null;
-  };
-  
-  export const formatNumber = (num: number = 0) => {
-    return num.toLocaleString(undefined, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    });
-  };
+  }
 
-  export const getLowestPricer = (curProd: Product) => {
-    if (!curProd || !curProd.priceHistory || curProd.priceHistory.length === 0) {
-      return null;
-    }
-  
-    let min = curProd.priceHistory[0];
-    for (let i = 1; i < curProd.priceHistory.length; i++) {
-      if (curProd.priceHistory[i] < min) {
-        min = curProd.priceHistory[i];
-      }
-    }
-  
-    return min;
-  };
+  return curProd.priceHistory.reduce((min, current) => 
+    current.price < min.price ? current : min
+  );
+};
