@@ -10,7 +10,7 @@ export const Notification = {
   THRESHOLD_MET: "THRESHOLD_MET",
 };
 
-export const generateEmailBody = async(
+export const generateEmailBody = (
   product: EmailProductInfo,
   type: NotificationType
 ) => {
