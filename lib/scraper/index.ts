@@ -40,7 +40,8 @@ export const scrapeAmazonProduct = async (url: string) => {
         $('.a-price.a-text-price span.a-offscreen'),
         $('#listPrice'),
         $('#priceblock_dealprice'),
-        $('.a-size-base.a-color-price')
+        $('.a-size-base.a-color-price'),
+        $('.aok-offscreen')
     )
 
     const outOfStock = $('#availability span').text().trim().toLowerCase() === 'currently unavailable';
